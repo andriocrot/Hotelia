@@ -278,3 +278,73 @@ contract Hotelia {
     function anchorReview(bytes32 propertyId, bytes32 reviewHash, uint8 scoreBand) external onlyOracle whenCurationActive nonReentrant {
         if (propertyId == bytes32(0)) revert HTL_ZeroProperty();
         if (_properties[propertyId].blockListed == 0) revert HTL_NotListed();
+        if (_properties[propertyId].frozen) revert HTL_PropertyFrozen();
+        if (scoreBand > HTL_SCORE_BAND_MAX) revert HTL_InvalidScoreBand();
+
+        ReviewRecord[] storage reviews = _reviewsByProperty[propertyId];
+        if (reviews.length >= HTL_MAX_REVIEWS_PER_PROPERTY) revert HTL_MaxReviewsPerProperty();
+
+        reviews.push(ReviewRecord({
+            reviewHash: reviewHash,
+            scoreBand: scoreBand,
+            blockAnchored: block.number,
+            anchoredBy: msg.sender
+        }));
+
+        PropertyData storage prop = _properties[propertyId];
+        prop.reviewCount = reviews.length;
+        uint8 oldBand = prop.currentScoreBand;
+        prop.currentScoreBand = scoreBand;
+
+        emit ReviewAnchored(propertyId, reviewHash, scoreBand, msg.sender, block.number);
+        if (oldBand != scoreBand) emit ScoreBandUpdated(propertyId, oldBand, scoreBand, block.number);
+    }
+
+    function batchAnchorReviews(bytes32 propertyId, bytes32[] calldata reviewHashes, uint8[] calldata scoreBands) external onlyOracle whenCurationActive nonReentrant {
+        if (propertyId == bytes32(0)) revert HTL_ZeroProperty();
+        if (_properties[propertyId].blockListed == 0) revert HTL_NotListed();
+        if (_properties[propertyId].frozen) revert HTL_PropertyFrozen();
+        uint256 len = reviewHashes.length;
+        if (len != scoreBands.length) revert HTL_BatchLengthMismatch();
+        if (len == 0) revert HTL_EmptyBatch();
+        if (len > HTL_MAX_BATCH_REVIEW) revert HTL_BatchLengthMismatch();
+
+        ReviewRecord[] storage reviews = _reviewsByProperty[propertyId];
+        if (reviews.length + len > HTL_MAX_REVIEWS_PER_PROPERTY) revert HTL_MaxReviewsPerProperty();
+
+        uint8 lastBand = _properties[propertyId].currentScoreBand;
+        for (uint256 i = 0; i < len; i++) {
+            uint8 band = scoreBands[i];
+            if (band > HTL_SCORE_BAND_MAX) revert HTL_InvalidScoreBand();
+            reviews.push(ReviewRecord({
+                reviewHash: reviewHashes[i],
+                scoreBand: band,
+                blockAnchored: block.number,
+                anchoredBy: msg.sender
+            }));
+            lastBand = band;
+        }
+        _properties[propertyId].reviewCount = reviews.length;
+        uint8 oldBand = _properties[propertyId].currentScoreBand;
+        _properties[propertyId].currentScoreBand = lastBand;
+
+        emit BatchReviewsAnchored(len, propertyId, block.number);
+        if (oldBand != lastBand) emit ScoreBandUpdated(propertyId, oldBand, lastBand, block.number);
+    }
+
+    function recordComparisonSnapshot(bytes32 leftPropertyId, bytes32 rightPropertyId, bytes32 diffHash) external onlyOracle whenCurationActive nonReentrant {
+        if (leftPropertyId == rightPropertyId) revert HTL_SamePropertyComparison();
+        if (leftPropertyId == bytes32(0) || rightPropertyId == bytes32(0)) revert HTL_ZeroProperty();
+        if (_properties[leftPropertyId].blockListed == 0 || _properties[rightPropertyId].blockListed == 0) revert HTL_NotListed();
+
+        bytes32 pairKey = keccak256(abi.encodePacked(leftPropertyId, rightPropertyId));
+        _comparisonSnapshots[pairKey] = diffHash;
+        emit ComparisonSnapshot(leftPropertyId, rightPropertyId, diffHash, block.number);
+    }
+
+    // -------------------------------------------------------------------------
+    // WRITES — GUIDES (CURATOR)
+    // -------------------------------------------------------------------------
+
+    function createGuide(bytes32 guideId) external onlyCurator whenCurationActive nonReentrant {
+        if (guideId == bytes32(0)) revert HTL_ZeroProperty();
