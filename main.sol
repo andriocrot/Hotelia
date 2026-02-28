@@ -208,3 +208,73 @@ contract Hotelia {
     function batchListProperties(bytes32[] calldata propertyIds, bytes32[] calldata regionHashes) external onlyCurator whenCurationActive nonReentrant {
         uint256 len = propertyIds.length;
         if (len != regionHashes.length) revert HTL_BatchLengthMismatch();
+        if (len == 0) revert HTL_EmptyBatch();
+        if (len > HTL_MAX_BATCH_LIST) revert HTL_BatchLengthMismatch();
+        if (propertyCount + len > HTL_MAX_PROPERTIES) revert HTL_MaxPropertiesReached();
+
+        for (uint256 i = 0; i < len; i++) {
+            bytes32 pid = propertyIds[i];
+            bytes32 rid = regionHashes[i];
+            if (pid == bytes32(0)) revert HTL_ZeroProperty();
+            if (rid == bytes32(0)) revert HTL_ZeroRegion();
+            if (_properties[pid].blockListed != 0) revert HTL_AlreadyListed();
+            if (_regionPaused[rid]) revert HTL_RegionPaused();
+
+            _propertyIds.push(pid);
+            propertyCount++;
+            _properties[pid] = PropertyData({
+                regionHash: rid,
+                listedBy: msg.sender,
+                blockListed: block.number,
+                frozen: false,
+                currentScoreBand: 0,
+                reviewCount: 0,
+                traitBundleHash: bytes32(0)
+            });
+            _propertyIdsByLister[msg.sender].push(pid);
+            _propertyIdsByRegion[rid].push(pid);
+            _regionPropertyCount[rid]++;
+            emit PropertyListed(pid, rid, msg.sender, block.number);
+        }
+        emit BatchPropertiesListed(len, msg.sender, block.number);
+    }
+
+    function setTrait(bytes32 propertyId, bytes32 traitKey, bytes32 traitValue) external onlyCurator whenCurationActive nonReentrant {
+        if (propertyId == bytes32(0)) revert HTL_ZeroProperty();
+        if (_properties[propertyId].blockListed == 0) revert HTL_NotListed();
+        if (_properties[propertyId].frozen) revert HTL_PropertyFrozen();
+
+        bytes32[] storage keys = _traitKeysByProperty[propertyId];
+        if (_traitOf[propertyId][traitKey] == bytes32(0) && traitKey != bytes32(0)) {
+            keys.push(traitKey);
+        }
+        _traitOf[propertyId][traitKey] = traitValue;
+        _properties[propertyId].traitBundleHash = keccak256(abi.encodePacked(propertyId, block.number, traitKey, traitValue, _properties[propertyId].traitBundleHash));
+
+        emit TraitUpdated(propertyId, traitKey, traitValue, msg.sender, block.number);
+    }
+
+    function freezeProperty(bytes32 propertyId) external onlyCurator nonReentrant {
+        if (propertyId == bytes32(0)) revert HTL_ZeroProperty();
+        if (_properties[propertyId].blockListed == 0) revert HTL_NotListed();
+        _properties[propertyId].frozen = true;
+        emit PropertyFrozen(propertyId, msg.sender, block.number);
+    }
+
+    function setCurationPaused(bool paused) external onlyCurator nonReentrant {
+        curationPaused = paused;
+        emit CurationPauseSet(paused, msg.sender, block.number);
+    }
+
+    function setRegionPaused(bytes32 regionHash, bool paused) external onlyCurator nonReentrant {
+        _regionPaused[regionHash] = paused;
+        emit RegionPauseSet(regionHash, paused, block.number);
+    }
+
+    // -------------------------------------------------------------------------
+    // WRITES — REVIEW ORACLE
+    // -------------------------------------------------------------------------
+
+    function anchorReview(bytes32 propertyId, bytes32 reviewHash, uint8 scoreBand) external onlyOracle whenCurationActive nonReentrant {
+        if (propertyId == bytes32(0)) revert HTL_ZeroProperty();
+        if (_properties[propertyId].blockListed == 0) revert HTL_NotListed();
