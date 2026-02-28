@@ -978,3 +978,73 @@ contract Hotelia {
     }
 
     function getBatchPropertyFrozen(bytes32[] calldata propertyIdsBatch) external view returns (bool[] memory frozen) {
+        frozen = new bool[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            frozen[i] = _properties[propertyIdsBatch[i]].frozen;
+        }
+    }
+
+    function getBatchCurrentScoreBands(bytes32[] calldata propertyIdsBatch) external view returns (uint8[] memory bands) {
+        bands = new uint8[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            bands[i] = _properties[propertyIdsBatch[i]].currentScoreBand;
+        }
+    }
+
+    function getBatchReviewCounts(bytes32[] calldata propertyIdsBatch) external view returns (uint256[] memory counts) {
+        counts = new uint256[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            counts[i] = _reviewsByProperty[propertyIdsBatch[i]].length;
+        }
+    }
+
+    function getTopScoreBandProperties(bytes32 regionHash, uint256 limit) external view returns (bytes32[] memory ids, uint8[] memory bands) {
+        bytes32[] storage regionIds = _propertyIdsByRegion[regionHash];
+        uint256 n = regionIds.length;
+        if (n == 0) {
+            ids = new bytes32[](0);
+            bands = new uint8[](0);
+            return (ids, bands);
+        }
+        if (limit > n) limit = n;
+        ids = new bytes32[](limit);
+        bands = new uint8[](limit);
+        uint256[] memory indices = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) indices[i] = i;
+        for (uint256 i = 0; i < n - 1; i++) {
+            for (uint256 j = i + 1; j < n; j++) {
+                uint8 bandI = _properties[regionIds[indices[i]]].currentScoreBand;
+                uint8 bandJ = _properties[regionIds[indices[j]]].currentScoreBand;
+                if (bandJ > bandI) {
+                    uint256 t = indices[i];
+                    indices[i] = indices[j];
+                    indices[j] = t;
+                }
+            }
+        }
+        for (uint256 i = 0; i < limit; i++) {
+            ids[i] = regionIds[indices[i]];
+            bands[i] = _properties[ids[i]].currentScoreBand;
+        }
+    }
+
+    function getPropertiesWithMinReviews(bytes32 regionHash, uint256 minReviews) external view returns (bytes32[] memory ids) {
+        bytes32[] storage regionIds = _propertyIdsByRegion[regionHash];
+        uint256 count = 0;
+        for (uint256 i = 0; i < regionIds.length; i++) {
+            if (_reviewsByProperty[regionIds[i]].length >= minReviews) count++;
+        }
+        ids = new bytes32[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < regionIds.length; i++) {
+            if (_reviewsByProperty[regionIds[i]].length >= minReviews) {
+                ids[j] = regionIds[i];
+                j++;
+            }
+        }
+    }
+
+    function getLatticeSalts() external pure returns (bytes32 latticeSalt, bytes32 guideAnchor) {
+        return (HTL_LATTICE_SALT, HTL_GUIDE_ANCHOR);
+    }
+
