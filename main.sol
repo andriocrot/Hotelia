@@ -68,3 +68,73 @@ contract Hotelia {
     bytes32 public constant HTL_GUIDE_ANCHOR = keccak256("Hotelia.HTL_GUIDE_ANCHOR");
     bytes32 public constant HTL_TRAIT_AMENITY = keccak256("Hotelia.TRAIT.AMENITY");
     bytes32 public constant HTL_TRAIT_PRICE_TIER = keccak256("Hotelia.TRAIT.PRICE_TIER");
+    bytes32 public constant HTL_TRAIT_STAR_RATING = keccak256("Hotelia.TRAIT.STAR_RATING");
+    bytes32 public constant HTL_TRAIT_CHAIN_ID = keccak256("Hotelia.TRAIT.CHAIN_ID");
+    bytes32 public constant HTL_TRAIT_LOCALE = keccak256("Hotelia.TRAIT.LOCALE");
+    bytes32 public constant HTL_TRAIT_AI_SUMMARY = keccak256("Hotelia.TRAIT.AI_SUMMARY");
+
+    // -------------------------------------------------------------------------
+    // IMMUTABLES
+    // -------------------------------------------------------------------------
+
+    address public immutable curator;
+    address public immutable reviewOracle;
+    address public immutable treasuryKeeper;
+    uint256 public immutable deployBlock;
+
+    // -------------------------------------------------------------------------
+    // STATE
+    // -------------------------------------------------------------------------
+
+    struct PropertyData {
+        bytes32 regionHash;
+        address listedBy;
+        uint256 blockListed;
+        bool frozen;
+        uint8 currentScoreBand;
+        uint256 reviewCount;
+        bytes32 traitBundleHash;
+    }
+
+    struct ReviewRecord {
+        bytes32 reviewHash;
+        uint8 scoreBand;
+        uint256 blockAnchored;
+        address anchoredBy;
+    }
+
+    struct GuideData {
+        bytes32[] segmentHashes;
+        uint256 createdAt;
+        address createdBy;
+    }
+
+    mapping(bytes32 => PropertyData) private _properties;
+    bytes32[] private _propertyIds;
+    uint256 public propertyCount;
+
+    mapping(bytes32 => ReviewRecord[]) private _reviewsByProperty;
+    mapping(bytes32 => mapping(bytes32 => bytes32)) private _traitOf;
+    mapping(bytes32 => bytes32[]) private _traitKeysByProperty;
+
+    mapping(bytes32 => bytes32) private _comparisonSnapshots;
+    mapping(bytes32 => GuideData) private _guides;
+    bytes32[] private _guideIds;
+    uint256 public guideCount;
+
+    mapping(address => bytes32[]) private _propertyIdsByLister;
+    mapping(bytes32 => bool) private _regionPaused;
+    mapping(bytes32 => bytes32[]) private _propertyIdsByRegion;
+    mapping(bytes32 => uint256) private _regionPropertyCount;
+
+    address public treasury;
+    bool public curationPaused;
+    uint256 private _reentrancyLock;
+
+    // -------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // -------------------------------------------------------------------------
+
+    constructor() {
+        curator = address(0x9D4c7F2a5E8b1C0d3f6A9e2B5c8D1f4a7E0b3C6);
+        reviewOracle = address(0xB8e1F4a7C0d3E6f9A2b5c8D1e4F7a0B3c6E9d2);
