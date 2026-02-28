@@ -558,3 +558,73 @@ contract Hotelia {
         bytes32[] memory regionHashes,
         address[] memory listers,
         uint256[] memory blocksListed,
+        bool[] memory frozenFlags,
+        uint8[] memory scoreBands,
+        uint256[] memory reviewCounts
+    ) {
+        uint256 n = propertyIdsBatch.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        regionHashes = new bytes32[](n);
+        listers = new address[](n);
+        blocksListed = new uint256[](n);
+        frozenFlags = new bool[](n);
+        scoreBands = new uint8[](n);
+        reviewCounts = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            PropertyData storage p = _properties[propertyIdsBatch[i]];
+            regionHashes[i] = p.regionHash;
+            listers[i] = p.listedBy;
+            blocksListed[i] = p.blockListed;
+            frozenFlags[i] = p.frozen;
+            scoreBands[i] = p.currentScoreBand;
+            reviewCounts[i] = p.reviewCount;
+        }
+    }
+
+    function getReviewsSlice(bytes32 propertyId, uint256 offset, uint256 limit) external view returns (
+        bytes32[] memory reviewHashes,
+        uint8[] memory scoreBands,
+        uint256[] memory blocksAnchored,
+        address[] memory anchoredBy
+    ) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        uint256 total = arr.length;
+        if (offset >= total) {
+            reviewHashes = new bytes32[](0);
+            scoreBands = new uint8[](0);
+            blocksAnchored = new uint256[](0);
+            anchoredBy = new address[](0);
+            return (reviewHashes, scoreBands, blocksAnchored, anchoredBy);
+        }
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        reviewHashes = new bytes32[](n);
+        scoreBands = new uint8[](n);
+        blocksAnchored = new uint256[](n);
+        anchoredBy = new address[](n);
+        for (uint256 i = 0; i < n; i++) {
+            ReviewRecord storage r = arr[offset + i];
+            reviewHashes[i] = r.reviewHash;
+            scoreBands[i] = r.scoreBand;
+            blocksAnchored[i] = r.blockAnchored;
+            anchoredBy[i] = r.anchoredBy;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — AGGREGATE SCORES (AI REVIEW DRIVEN)
+    // -------------------------------------------------------------------------
+
+    function averageScoreBand(bytes32 propertyId) external view returns (uint256 numerator, uint256 denominator) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        uint256 len = arr.length;
+        if (len == 0) return (0, 0);
+        uint256 sum = 0;
+        for (uint256 i = 0; i < len; i++) sum += arr[i].scoreBand;
+        return (sum, len);
+    }
+
+    function medianScoreBand(bytes32 propertyId) external view returns (uint8) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        uint256 len = arr.length;
