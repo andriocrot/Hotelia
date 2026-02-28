@@ -1048,3 +1048,73 @@ contract Hotelia {
         return (HTL_LATTICE_SALT, HTL_GUIDE_ANCHOR);
     }
 
+    function getStandardTraitKeys() external pure returns (
+        bytes32 amenityKey,
+        bytes32 priceTierKey,
+        bytes32 starRatingKey,
+        bytes32 chainIdKey,
+        bytes32 localeKey,
+        bytes32 aiSummaryKey
+    ) {
+        return (
+            HTL_TRAIT_AMENITY,
+            HTL_TRAIT_PRICE_TIER,
+            HTL_TRAIT_STAR_RATING,
+            HTL_TRAIT_CHAIN_ID,
+            HTL_TRAIT_LOCALE,
+            HTL_TRAIT_AI_SUMMARY
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // PURE HELPERS — LATTICE & PAIR (OFF-CHAIN / FRONTEND)
+    // -------------------------------------------------------------------------
+
+    function computeLatticeHash(bytes32 propertyId, bytes32 reviewHash, uint8 scoreBand, uint256 atBlock) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(HTL_LATTICE_SALT, propertyId, reviewHash, scoreBand, atBlock));
+    }
+
+    function computePairKey(bytes32 leftId, bytes32 rightId) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(leftId, rightId));
+    }
+
+    function computeTraitBundleHashFromPairs(bytes32 propertyId, bytes32[] calldata keys, bytes32[] calldata values) external pure returns (bytes32) {
+        if (keys.length != values.length) revert HTL_BatchLengthMismatch();
+        bytes32 h = HTL_LATTICE_SALT;
+        for (uint256 i = 0; i < keys.length; i++) {
+            h = keccak256(abi.encodePacked(h, propertyId, keys[i], values[i]));
+        }
+        return h;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTENDED BATCH VIEWS — AI REVIEW CHECKER BULK
+    // -------------------------------------------------------------------------
+
+    function getAverageScoreBandsBatch(bytes32[] calldata propertyIdsBatch) external view returns (uint256[] memory numerators, uint256[] memory denominators) {
+        uint256 n = propertyIdsBatch.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        numerators = new uint256[](n);
+        denominators = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            ReviewRecord[] storage arr = _reviewsByProperty[propertyIdsBatch[i]];
+            uint256 len = arr.length;
+            denominators[i] = len;
+            if (len == 0) continue;
+            uint256 sum = 0;
+            for (uint256 j = 0; j < len; j++) sum += arr[j].scoreBand;
+            numerators[i] = sum;
+        }
+    }
+
+    function getMedianScoreBandsBatch(bytes32[] calldata propertyIdsBatch) external view returns (uint8[] memory medians) {
+        uint256 n = propertyIdsBatch.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        medians = new uint8[](n);
+        for (uint256 idx = 0; idx < n; idx++) {
+            ReviewRecord[] storage arr = _reviewsByProperty[propertyIdsBatch[idx]];
+            uint256 len = arr.length;
+            if (len == 0) {
+                medians[idx] = 0;
+                continue;
+            }
