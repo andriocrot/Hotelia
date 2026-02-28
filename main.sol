@@ -838,3 +838,73 @@ contract Hotelia {
     }
 
     function getLatticeHashForLatestReview(bytes32 propertyId) external view returns (bytes32) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        if (arr.length == 0) return bytes32(0);
+        ReviewRecord storage r = arr[arr.length - 1];
+        return _computeLatticeHash(propertyId, r.reviewHash, r.scoreBand, r.blockAnchored);
+    }
+
+    function getLatestReview(bytes32 propertyId) external view returns (
+        bytes32 reviewHash,
+        uint8 scoreBand,
+        uint256 blockAnchored,
+        address anchoredBy
+    ) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        if (arr.length == 0) revert HTL_InvalidIndex();
+        ReviewRecord storage r = arr[arr.length - 1];
+        return (r.reviewHash, r.scoreBand, r.blockAnchored, r.anchoredBy);
+    }
+
+    function getGuideInfo(bytes32 guideId) external view returns (uint256 segmentCount, uint256 createdAt, address createdBy) {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        return (g.segmentHashes.length, g.createdAt, g.createdBy);
+    }
+
+    function getMultipleComparisonSnapshots(bytes32[] calldata leftIds, bytes32[] calldata rightIds) external view returns (bytes32[] memory diffHashes) {
+        if (leftIds.length != rightIds.length) revert HTL_BatchLengthMismatch();
+        uint256 n = leftIds.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        diffHashes = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) {
+            if (leftIds[i] == rightIds[i]) continue;
+            bytes32 pairKey = keccak256(abi.encodePacked(leftIds[i], rightIds[i]));
+            diffHashes[i] = _comparisonSnapshots[pairKey];
+        }
+    }
+
+    function getPropertyFull(bytes32 propertyId) external view returns (
+        bytes32 regionHash,
+        address listedBy,
+        uint256 blockListed,
+        bool frozen,
+        uint8 currentScoreBand,
+        uint256 reviewCount,
+        bytes32 traitBundleHash,
+        bytes32[] memory traitKeys,
+        bytes32[] memory traitValues
+    ) {
+        PropertyData storage p = _properties[propertyId];
+        if (p.blockListed == 0) revert HTL_NotListed();
+        traitKeys = _traitKeysByProperty[propertyId];
+        uint256 klen = traitKeys.length;
+        traitValues = new bytes32[](klen);
+        for (uint256 i = 0; i < klen; i++) traitValues[i] = _traitOf[propertyId][traitKeys[i]];
+        return (
+            p.regionHash,
+            p.listedBy,
+            p.blockListed,
+            p.frozen,
+            p.currentScoreBand,
+            p.reviewCount,
+            p.traitBundleHash,
+            traitKeys,
+            traitValues
+        );
+    }
+
+    function getReviewsFull(bytes32 propertyId) external view returns (
+        bytes32[] memory reviewHashes,
+        uint8[] memory scoreBands,
+        uint256[] memory blocksAnchored,
