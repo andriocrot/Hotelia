@@ -418,3 +418,73 @@ contract Hotelia {
         return _traitKeysByProperty[propertyId].length;
     }
 
+    function traitKeyAt(bytes32 propertyId, uint256 index) external view returns (bytes32) {
+        bytes32[] storage keys = _traitKeysByProperty[propertyId];
+        if (index >= keys.length) revert HTL_InvalidIndex();
+        return keys[index];
+    }
+
+    function isRegionPaused(bytes32 regionHash) external view returns (bool) {
+        return _regionPaused[regionHash];
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — REVIEWS
+    // -------------------------------------------------------------------------
+
+    function reviewCount(bytes32 propertyId) external view returns (uint256) {
+        return _reviewsByProperty[propertyId].length;
+    }
+
+    function getReview(bytes32 propertyId, uint256 index) external view returns (
+        bytes32 reviewHash,
+        uint8 scoreBand,
+        uint256 blockAnchored,
+        address anchoredBy
+    ) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        if (index >= arr.length) revert HTL_InvalidIndex();
+        ReviewRecord storage r = arr[index];
+        return (r.reviewHash, r.scoreBand, r.blockAnchored, r.anchoredBy);
+    }
+
+    function getComparisonSnapshot(bytes32 leftPropertyId, bytes32 rightPropertyId) external view returns (bytes32) {
+        if (leftPropertyId == rightPropertyId) return bytes32(0);
+        bytes32 pairKey = keccak256(abi.encodePacked(leftPropertyId, rightPropertyId));
+        return _comparisonSnapshots[pairKey];
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — GUIDES
+    // -------------------------------------------------------------------------
+
+    function getGuide(bytes32 guideId) external view returns (
+        bytes32[] memory segmentHashes,
+        uint256 createdAt,
+        address createdBy
+    ) {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        return (g.segmentHashes, g.createdAt, g.createdBy);
+    }
+
+    function guideSegmentCount(bytes32 guideId) external view returns (uint256) {
+        return _guides[guideId].segmentHashes.length;
+    }
+
+    function guideIdAt(uint256 index) external view returns (bytes32) {
+        if (index >= _guideIds.length) revert HTL_InvalidIndex();
+        return _guideIds[index];
+    }
+
+    // -------------------------------------------------------------------------
+    // ADMIN / ORACLE ROTATION (OPTIONAL; CURATOR CAN EMIT)
+    // -------------------------------------------------------------------------
+
+    function emitOracleRefreshed() external onlyCurator {
+        emit OracleRefreshed(reviewOracle, block.number);
+    }
+
+    // -------------------------------------------------------------------------
+    // INTERNAL HELPERS — LATTICE & HASH
+    // -------------------------------------------------------------------------
