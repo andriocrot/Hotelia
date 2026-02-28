@@ -628,3 +628,73 @@ contract Hotelia {
     function medianScoreBand(bytes32 propertyId) external view returns (uint8) {
         ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
         uint256 len = arr.length;
+        if (len == 0) return 0;
+        uint256[] memory bands = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) bands[i] = arr[i].scoreBand;
+        for (uint256 i = 0; i < len - 1; i++) {
+            for (uint256 j = i + 1; j < len; j++) {
+                if (bands[j] < bands[i]) {
+                    uint256 t = bands[i];
+                    bands[i] = bands[j];
+                    bands[j] = t;
+                }
+            }
+        }
+        if (len % 2 == 1) return uint8(bands[len / 2]);
+        return uint8((bands[len / 2 - 1] + bands[len / 2]) / 2);
+    }
+
+    function scoreBandDistribution(bytes32 propertyId) external view returns (uint256[] memory counts) {
+        counts = new uint256[](HTL_SCORE_BAND_MAX + 1);
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        for (uint256 i = 0; i < arr.length; i++) {
+            uint8 b = arr[i].scoreBand;
+            if (b <= HTL_SCORE_BAND_MAX) counts[b]++;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — COMPARISON HELPERS (HOTEL COMPARISON)
+    // -------------------------------------------------------------------------
+
+    function getComparisonSnapshotNormalized(bytes32 propertyIdA, bytes32 propertyIdB) external view returns (bytes32 diffHash) {
+        (bytes32 left, bytes32 right) = _normalizePair(propertyIdA, propertyIdB);
+        bytes32 pairKey = keccak256(abi.encodePacked(left, right));
+        return _comparisonSnapshots[pairKey];
+    }
+
+    function hasComparison(bytes32 leftPropertyId, bytes32 rightPropertyId) external view returns (bool) {
+        if (leftPropertyId == rightPropertyId) return false;
+        bytes32 pairKey = keccak256(abi.encodePacked(leftPropertyId, rightPropertyId));
+        return _comparisonSnapshots[pairKey] != bytes32(0);
+    }
+
+    function getTraitsBatch(bytes32 propertyId, bytes32[] calldata traitKeys) external view returns (bytes32[] memory values) {
+        values = new bytes32[](traitKeys.length);
+        for (uint256 i = 0; i < traitKeys.length; i++) values[i] = _traitOf[propertyId][traitKeys[i]];
+    }
+
+    function getAllTraitKeys(bytes32 propertyId) external view returns (bytes32[] memory keys) {
+        keys = _traitKeysByProperty[propertyId];
+    }
+
+    function getAllTraits(bytes32 propertyId) external view returns (bytes32[] memory keys, bytes32[] memory values) {
+        keys = _traitKeysByProperty[propertyId];
+        uint256 n = keys.length;
+        values = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) values[i] = _traitOf[propertyId][keys[i]];
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — GUIDES PAGINATION
+    // -------------------------------------------------------------------------
+
+    function getGuideIdsSlice(uint256 offset, uint256 limit) external view returns (bytes32[] memory ids) {
+        uint256 total = _guideIds.length;
+        if (offset >= total) return new bytes32[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        ids = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) ids[i] = _guideIds[offset + i];
+    }
