@@ -1118,3 +1118,73 @@ contract Hotelia {
                 medians[idx] = 0;
                 continue;
             }
+            uint256[] memory bands = new uint256[](len);
+            for (uint256 i = 0; i < len; i++) bands[i] = arr[i].scoreBand;
+            for (uint256 i = 0; i < len - 1; i++) {
+                for (uint256 j = i + 1; j < len; j++) {
+                    if (bands[j] < bands[i]) {
+                        uint256 t = bands[i];
+                        bands[i] = bands[j];
+                        bands[j] = t;
+                    }
+                }
+            }
+            if (len % 2 == 1) medians[idx] = uint8(bands[len / 2]);
+            else medians[idx] = uint8((bands[len / 2 - 1] + bands[len / 2]) / 2);
+        }
+    }
+
+    function getScoreBandDistributionsBatch(bytes32[] calldata propertyIdsBatch) external view returns (uint256[][] memory distributions) {
+        uint256 n = propertyIdsBatch.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        distributions = new uint256[][](n);
+        for (uint256 idx = 0; idx < n; idx++) {
+            uint256[] memory counts = new uint256[](HTL_SCORE_BAND_MAX + 1);
+            ReviewRecord[] storage arr = _reviewsByProperty[propertyIdsBatch[idx]];
+            for (uint256 i = 0; i < arr.length; i++) {
+                uint8 b = arr[i].scoreBand;
+                if (b <= HTL_SCORE_BAND_MAX) counts[b]++;
+            }
+            distributions[idx] = counts;
+        }
+    }
+
+    function getLatestReviewsBatch(bytes32[] calldata propertyIdsBatch) external view returns (
+        bytes32[] memory reviewHashes,
+        uint8[] memory scoreBands,
+        uint256[] memory blocksAnchored,
+        address[] memory anchoredBy
+    ) {
+        uint256 n = propertyIdsBatch.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        reviewHashes = new bytes32[](n);
+        scoreBands = new uint8[](n);
+        blocksAnchored = new uint256[](n);
+        anchoredBy = new address[](n);
+        for (uint256 i = 0; i < n; i++) {
+            ReviewRecord[] storage arr = _reviewsByProperty[propertyIdsBatch[i]];
+            if (arr.length == 0) {
+                reviewHashes[i] = bytes32(0);
+                scoreBands[i] = 0;
+                blocksAnchored[i] = 0;
+                anchoredBy[i] = address(0);
+            } else {
+                ReviewRecord storage r = arr[arr.length - 1];
+                reviewHashes[i] = r.reviewHash;
+                scoreBands[i] = r.scoreBand;
+                blocksAnchored[i] = r.blockAnchored;
+                anchoredBy[i] = r.anchoredBy;
+            }
+        }
+    }
+
+    function getLatticeHashesForLatestReviewsBatch(bytes32[] calldata propertyIdsBatch) external view returns (bytes32[] memory latticeHashes) {
+        uint256 n = propertyIdsBatch.length;
+        if (n > HTL_MAX_PAGE_SIZE) revert HTL_InvalidIndex();
+        latticeHashes = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) {
+            ReviewRecord[] storage arr = _reviewsByProperty[propertyIdsBatch[i]];
+            if (arr.length == 0) latticeHashes[i] = bytes32(0);
+            else {
+                ReviewRecord storage r = arr[arr.length - 1];
+                latticeHashes[i] = _computeLatticeHash(propertyIdsBatch[i], r.reviewHash, r.scoreBand, r.blockAnchored);
