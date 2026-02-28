@@ -698,3 +698,73 @@ contract Hotelia {
         ids = new bytes32[](n);
         for (uint256 i = 0; i < n; i++) ids[i] = _guideIds[offset + i];
     }
+
+    function getGuideSegment(bytes32 guideId, uint256 segmentIndex) external view returns (bytes32 contentHash) {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        if (segmentIndex >= g.segmentHashes.length) revert HTL_InvalidIndex();
+        return g.segmentHashes[segmentIndex];
+    }
+
+    function guideSegmentHashesSlice(bytes32 guideId, uint256 offset, uint256 limit) external view returns (bytes32[] memory hashes) {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        uint256 total = g.segmentHashes.length;
+        if (offset >= total) return new bytes32[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        hashes = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) hashes[i] = g.segmentHashes[offset + i];
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — CONTRACT METADATA & CONFIG
+    // -------------------------------------------------------------------------
+
+    function getConfig() external view returns (
+        uint256 maxProperties,
+        uint256 maxReviewsPerProperty,
+        uint256 maxBatchList,
+        uint256 maxBatchReview,
+        uint256 maxGuideSegments,
+        uint256 scoreBandMax,
+        uint256 maxPageSize
+    ) {
+        return (
+            HTL_MAX_PROPERTIES,
+            HTL_MAX_REVIEWS_PER_PROPERTY,
+            HTL_MAX_BATCH_LIST,
+            HTL_MAX_BATCH_REVIEW,
+            HTL_MAX_GUIDE_SEGMENTS,
+            HTL_SCORE_BAND_MAX,
+            HTL_MAX_PAGE_SIZE
+        );
+    }
+
+    function getRoles() external view returns (address curatorAddr, address oracleAddr, address treasuryKeeperAddr, address treasuryAddr) {
+        return (curator, reviewOracle, treasuryKeeper, treasury);
+    }
+
+    function getDeployInfo() external view returns (uint256 blockNumber, bool paused) {
+        return (deployBlock, curationPaused);
+    }
+
+    function isPropertyListed(bytes32 propertyId) external view returns (bool) {
+        return _properties[propertyId].blockListed != 0;
+    }
+
+    function isPropertyFrozen(bytes32 propertyId) external view returns (bool) {
+        return _properties[propertyId].frozen;
+    }
+
+    function existsGuide(bytes32 guideId) external view returns (bool) {
+        return _guides[guideId].createdAt != 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTENDED VIEWS — MULTI-REGION & BULK (AI REVIEW / COMPARISON)
+    // -------------------------------------------------------------------------
+
+    function getPropertiesByRegionSlice(bytes32 regionHash, uint256 offset, uint256 limit) external view returns (
+        bytes32[] memory ids,
