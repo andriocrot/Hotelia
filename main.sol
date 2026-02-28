@@ -908,3 +908,73 @@ contract Hotelia {
         bytes32[] memory reviewHashes,
         uint8[] memory scoreBands,
         uint256[] memory blocksAnchored,
+        address[] memory anchoredBy,
+        bytes32[] memory latticeHashes
+    ) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        uint256 n = arr.length;
+        reviewHashes = new bytes32[](n);
+        scoreBands = new uint8[](n);
+        blocksAnchored = new uint256[](n);
+        anchoredBy = new address[](n);
+        latticeHashes = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) {
+            ReviewRecord storage r = arr[i];
+            reviewHashes[i] = r.reviewHash;
+            scoreBands[i] = r.scoreBand;
+            blocksAnchored[i] = r.blockAnchored;
+            anchoredBy[i] = r.anchoredBy;
+            latticeHashes[i] = _computeLatticeHash(propertyId, r.reviewHash, r.scoreBand, r.blockAnchored);
+        }
+    }
+
+    function getRegionsWithCounts(bytes32[] calldata regionHashes) external view returns (uint256[] memory counts) {
+        counts = new uint256[](regionHashes.length);
+        for (uint256 i = 0; i < regionHashes.length; i++) counts[i] = _regionPropertyCount[regionHashes[i]];
+    }
+
+    function isRegionPausedBatch(bytes32[] calldata regionHashes) external view returns (bool[] memory paused) {
+        paused = new bool[](regionHashes.length);
+        for (uint256 i = 0; i < regionHashes.length; i++) paused[i] = _regionPaused[regionHashes[i]];
+    }
+
+    function getPropertyBlockListed(bytes32 propertyId) external view returns (uint256) {
+        return _properties[propertyId].blockListed;
+    }
+
+    function getPropertyRegion(bytes32 propertyId) external view returns (bytes32) {
+        return _properties[propertyId].regionHash;
+    }
+
+    function getPropertyCurrentScoreBand(bytes32 propertyId) external view returns (uint8) {
+        return _properties[propertyId].currentScoreBand;
+    }
+
+    function getPropertyTraitBundleHash(bytes32 propertyId) external view returns (bytes32) {
+        return _properties[propertyId].traitBundleHash;
+    }
+
+    function totalGuideSegments() external view returns (uint256 total) {
+        for (uint256 i = 0; i < _guideIds.length; i++) {
+            total += _guides[_guideIds[i]].segmentHashes.length;
+        }
+    }
+
+    function getGuideSegmentHashes(bytes32 guideId) external view returns (bytes32[] memory) {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        return g.segmentHashes;
+    }
+
+    function computeExpectedTraitBundleHash(bytes32 propertyId, bytes32[] memory keys, bytes32[] memory values) external view returns (bytes32) {
+        return _computeTraitBundleHash(propertyId, keys, values);
+    }
+
+    function getBatchPropertyExists(bytes32[] calldata propertyIdsBatch) external view returns (bool[] memory exists) {
+        exists = new bool[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            exists[i] = _properties[propertyIdsBatch[i]].blockListed != 0;
+        }
+    }
+
+    function getBatchPropertyFrozen(bytes32[] calldata propertyIdsBatch) external view returns (bool[] memory frozen) {
