@@ -768,3 +768,73 @@ contract Hotelia {
 
     function getPropertiesByRegionSlice(bytes32 regionHash, uint256 offset, uint256 limit) external view returns (
         bytes32[] memory ids,
+        address[] memory listers,
+        uint8[] memory scoreBands,
+        uint256[] memory reviewCounts
+    ) {
+        bytes32[] storage regionIds = _propertyIdsByRegion[regionHash];
+        uint256 total = regionIds.length;
+        if (offset >= total) {
+            ids = new bytes32[](0);
+            listers = new address[](0);
+            scoreBands = new uint8[](0);
+            reviewCounts = new uint256[](0);
+            return (ids, listers, scoreBands, reviewCounts);
+        }
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        ids = new bytes32[](n);
+        listers = new address[](n);
+        scoreBands = new uint8[](n);
+        reviewCounts = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            bytes32 pid = regionIds[offset + i];
+            PropertyData storage p = _properties[pid];
+            ids[i] = pid;
+            listers[i] = p.listedBy;
+            scoreBands[i] = p.currentScoreBand;
+            reviewCounts[i] = p.reviewCount;
+        }
+    }
+
+    function getAverageScoreBandNumerator(bytes32 propertyId) external view returns (uint256) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        uint256 sum = 0;
+        for (uint256 i = 0; i < arr.length; i++) sum += arr[i].scoreBand;
+        return sum;
+    }
+
+    function getTotalReviewCount() external view returns (uint256 total) {
+        for (uint256 i = 0; i < _propertyIds.length; i++) {
+            total += _reviewsByProperty[_propertyIds[i]].length;
+        }
+    }
+
+    function getPropertyIdsByRegion(bytes32 regionHash) external view returns (bytes32[] memory) {
+        return _propertyIdsByRegion[regionHash];
+    }
+
+    function compareScoreBands(bytes32 propertyIdA, bytes32 propertyIdB) external view returns (
+        uint8 bandA,
+        uint8 bandB,
+        int8 difference
+    ) {
+        bandA = _properties[propertyIdA].currentScoreBand;
+        bandB = _properties[propertyIdB].currentScoreBand;
+        difference = int8(uint8(bandA)) - int8(uint8(bandB));
+    }
+
+    function compareReviewCounts(bytes32 propertyIdA, bytes32 propertyIdB) external view returns (
+        uint256 countA,
+        uint256 countB
+    ) {
+        countA = _reviewsByProperty[propertyIdA].length;
+        countB = _reviewsByProperty[propertyIdB].length;
+    }
+
+    function getTraitValueForStandard(bytes32 propertyId, bytes32 standardTraitKey) external view returns (bytes32) {
+        return _traitOf[propertyId][standardTraitKey];
+    }
+
+    function getLatticeHashForLatestReview(bytes32 propertyId) external view returns (bytes32) {
