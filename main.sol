@@ -348,3 +348,73 @@ contract Hotelia {
 
     function createGuide(bytes32 guideId) external onlyCurator whenCurationActive nonReentrant {
         if (guideId == bytes32(0)) revert HTL_ZeroProperty();
+        if (_guides[guideId].createdAt != 0) revert HTL_AlreadyListed();
+
+        _guideIds.push(guideId);
+        guideCount++;
+        _guides[guideId] = GuideData({
+            segmentHashes: new bytes32[](0),
+            createdAt: block.number,
+            createdBy: msg.sender
+        });
+    }
+
+    function appendGuideSegment(bytes32 guideId, bytes32 contentHash) external onlyCurator whenCurationActive nonReentrant {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        if (g.segmentHashes.length >= HTL_MAX_GUIDE_SEGMENTS) revert HTL_MaxGuideSegments();
+
+        g.segmentHashes.push(contentHash);
+        emit GuideSegmentAppended(guideId, g.segmentHashes.length - 1, contentHash, block.number);
+    }
+
+    // -------------------------------------------------------------------------
+    // WRITES — TREASURY
+    // -------------------------------------------------------------------------
+
+    function setTreasury(address newTreasury) external onlyTreasuryKeeper nonReentrant {
+        if (newTreasury == address(0)) revert HTL_ZeroAddress();
+        address old = treasury;
+        treasury = newTreasury;
+        emit TreasuryRotated(old, newTreasury, block.number);
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — PROPERTIES
+    // -------------------------------------------------------------------------
+
+    function getProperty(bytes32 propertyId) external view returns (
+        bytes32 regionHash,
+        address listedBy,
+        uint256 blockListed,
+        bool frozen,
+        uint8 currentScoreBand,
+        uint256 reviewCount,
+        bytes32 traitBundleHash
+    ) {
+        PropertyData storage p = _properties[propertyId];
+        return (p.regionHash, p.listedBy, p.blockListed, p.frozen, p.currentScoreBand, p.reviewCount, p.traitBundleHash);
+    }
+
+    function propertyIds(uint256 index) external view returns (bytes32) {
+        if (index >= _propertyIds.length) revert HTL_InvalidIndex();
+        return _propertyIds[index];
+    }
+
+    function propertyCountForLister(address lister) external view returns (uint256) {
+        return _propertyIdsByLister[lister].length;
+    }
+
+    function propertyIdByLister(address lister, uint256 index) external view returns (bytes32) {
+        if (index >= _propertyIdsByLister[lister].length) revert HTL_InvalidIndex();
+        return _propertyIdsByLister[lister][index];
+    }
+
+    function getTrait(bytes32 propertyId, bytes32 traitKey) external view returns (bytes32) {
+        return _traitOf[propertyId][traitKey];
+    }
+
+    function traitKeyCount(bytes32 propertyId) external view returns (uint256) {
+        return _traitKeysByProperty[propertyId].length;
+    }
+
