@@ -138,3 +138,73 @@ contract Hotelia {
     constructor() {
         curator = address(0x9D4c7F2a5E8b1C0d3f6A9e2B5c8D1f4a7E0b3C6);
         reviewOracle = address(0xB8e1F4a7C0d3E6f9A2b5c8D1e4F7a0B3c6E9d2);
+        treasuryKeeper = address(0xC1d4E7f0A3b6C9e2D5f8a1B4c7E0d3F6a9B2);
+        treasury = address(0xD2e5F8a1B4c7E0d3F6a9B2c5E8f1A4b7C0d3E6);
+        deployBlock = block.number;
+        if (curator == address(0) || reviewOracle == address(0) || treasuryKeeper == address(0)) revert HTL_ZeroAddress();
+    }
+
+    // -------------------------------------------------------------------------
+    // MODIFIERS
+    // -------------------------------------------------------------------------
+
+    modifier onlyCurator() {
+        if (msg.sender != curator) revert HTL_NotCurator();
+        _;
+    }
+
+    modifier onlyOracle() {
+        if (msg.sender != reviewOracle) revert HTL_NotOracle();
+        _;
+    }
+
+    modifier onlyTreasuryKeeper() {
+        if (msg.sender != treasuryKeeper) revert HTL_NotTreasuryKeeper();
+        _;
+    }
+
+    modifier whenCurationActive() {
+        if (curationPaused) revert HTL_CurationPaused();
+        _;
+    }
+
+    modifier nonReentrant() {
+        if (_reentrancyLock != 0) revert HTL_ReentrantCall();
+        _reentrancyLock = 1;
+        _;
+        _reentrancyLock = 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // WRITES — LISTING & TRAITS
+    // -------------------------------------------------------------------------
+
+    function listProperty(bytes32 propertyId, bytes32 regionHash) external onlyCurator whenCurationActive nonReentrant {
+        if (propertyId == bytes32(0)) revert HTL_ZeroProperty();
+        if (regionHash == bytes32(0)) revert HTL_ZeroRegion();
+        if (_properties[propertyId].blockListed != 0) revert HTL_AlreadyListed();
+        if (propertyCount >= HTL_MAX_PROPERTIES) revert HTL_MaxPropertiesReached();
+        if (_regionPaused[regionHash]) revert HTL_RegionPaused();
+
+        _propertyIds.push(propertyId);
+        propertyCount++;
+
+        _properties[propertyId] = PropertyData({
+            regionHash: regionHash,
+            listedBy: msg.sender,
+            blockListed: block.number,
+            frozen: false,
+            currentScoreBand: 0,
+            reviewCount: 0,
+            traitBundleHash: bytes32(0)
+        });
+        _propertyIdsByLister[msg.sender].push(propertyId);
+        _propertyIdsByRegion[regionHash].push(propertyId);
+        _regionPropertyCount[regionHash]++;
+
+        emit PropertyListed(propertyId, regionHash, msg.sender, block.number);
+    }
+
+    function batchListProperties(bytes32[] calldata propertyIds, bytes32[] calldata regionHashes) external onlyCurator whenCurationActive nonReentrant {
+        uint256 len = propertyIds.length;
+        if (len != regionHashes.length) revert HTL_BatchLengthMismatch();
