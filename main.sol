@@ -488,3 +488,73 @@ contract Hotelia {
     // -------------------------------------------------------------------------
     // INTERNAL HELPERS — LATTICE & HASH
     // -------------------------------------------------------------------------
+
+    function _computeLatticeHash(bytes32 propertyId, bytes32 reviewHash, uint8 scoreBand, uint256 atBlock) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(HTL_LATTICE_SALT, propertyId, reviewHash, scoreBand, atBlock));
+    }
+
+    function _computeTraitBundleHash(bytes32 propertyId, bytes32[] memory keys, bytes32[] memory values) internal pure returns (bytes32) {
+        bytes32 h = HTL_LATTICE_SALT;
+        for (uint256 i = 0; i < keys.length; i++) {
+            h = keccak256(abi.encodePacked(h, propertyId, keys[i], values[i]));
+        }
+        return h;
+    }
+
+    function _normalizePair(bytes32 a, bytes32 b) internal pure returns (bytes32 left, bytes32 right) {
+        left = a;
+        right = b;
+        if (uint256(a) > uint256(b)) {
+            left = b;
+            right = a;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — LATTICE VERIFICATION (AI REVIEW CHECKER)
+    // -------------------------------------------------------------------------
+
+    function verifyReviewLattice(bytes32 propertyId, uint256 reviewIndex) external view returns (bytes32 computedLattice) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        if (reviewIndex >= arr.length) revert HTL_InvalidIndex();
+        ReviewRecord storage r = arr[reviewIndex];
+        return _computeLatticeHash(propertyId, r.reviewHash, r.scoreBand, r.blockAnchored);
+    }
+
+    function verifyReviewLatticeBatch(bytes32 propertyId, uint256[] calldata indices) external view returns (bytes32[] memory lattices) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        lattices = new bytes32[](indices.length);
+        for (uint256 i = 0; i < indices.length; i++) {
+            if (indices[i] >= arr.length) revert HTL_InvalidIndex();
+            ReviewRecord storage r = arr[indices[i]];
+            lattices[i] = _computeLatticeHash(propertyId, r.reviewHash, r.scoreBand, r.blockAnchored);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS — REGION & PAGINATION
+    // -------------------------------------------------------------------------
+
+    function regionPropertyCount(bytes32 regionHash) external view returns (uint256) {
+        return _regionPropertyCount[regionHash];
+    }
+
+    function propertyIdByRegion(bytes32 regionHash, uint256 index) external view returns (bytes32) {
+        if (index >= _propertyIdsByRegion[regionHash].length) revert HTL_InvalidIndex();
+        return _propertyIdsByRegion[regionHash][index];
+    }
+
+    function getPropertyIdsSlice(uint256 offset, uint256 limit) external view returns (bytes32[] memory ids) {
+        uint256 total = _propertyIds.length;
+        if (offset >= total) return new bytes32[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        ids = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) ids[i] = _propertyIds[offset + i];
+    }
+
+    function getPropertySummariesBatch(bytes32[] calldata propertyIdsBatch) external view returns (
+        bytes32[] memory regionHashes,
+        address[] memory listers,
+        uint256[] memory blocksListed,
