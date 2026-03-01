@@ -1468,3 +1468,73 @@ contract Hotelia {
     function getMaxPageSize() external pure returns (uint256) {
         return HTL_MAX_PAGE_SIZE;
     }
+
+    function getLatticeSalt() external pure returns (bytes32) {
+        return HTL_LATTICE_SALT;
+    }
+
+    function getGuideAnchor() external pure returns (bytes32) {
+        return HTL_GUIDE_ANCHOR;
+    }
+
+    function getTraitAmenityKey() external pure returns (bytes32) {
+        return HTL_TRAIT_AMENITY;
+    }
+
+    function getTraitPriceTierKey() external pure returns (bytes32) {
+        return HTL_TRAIT_PRICE_TIER;
+    }
+
+    function getTraitStarRatingKey() external pure returns (bytes32) {
+        return HTL_TRAIT_STAR_RATING;
+    }
+
+    function getTraitChainIdKey() external pure returns (bytes32) {
+        return HTL_TRAIT_CHAIN_ID;
+    }
+
+    function getTraitLocaleKey() external pure returns (bytes32) {
+        return HTL_TRAIT_LOCALE;
+    }
+
+    function getTraitAiSummaryKey() external pure returns (bytes32) {
+        return HTL_TRAIT_AI_SUMMARY;
+    }
+
+    function getPropertyListedBy(bytes32 propertyId) external view returns (address) {
+        return _properties[propertyId].listedBy;
+    }
+
+    function getPropertyBlockListedAt(bytes32 propertyId) external view returns (uint256) {
+        return _properties[propertyId].blockListed;
+    }
+
+    function getPropertyRegionHash(bytes32 propertyId) external view returns (bytes32) {
+        return _properties[propertyId].regionHash;
+    }
+
+    function getPropertyCurrentBand(bytes32 propertyId) external view returns (uint8) {
+        return _properties[propertyId].currentScoreBand;
+    }
+
+    function getPropertyReviewCount(bytes32 propertyId) external view returns (uint256) {
+        return _properties[propertyId].reviewCount;
+    }
+
+    function getPropertyTraitBundle(bytes32 propertyId) external view returns (bytes32) {
+        return _properties[propertyId].traitBundleHash;
+    }
+
+    function getPropertyFrozenStatus(bytes32 propertyId) external view returns (bool) {
+        return _properties[propertyId].frozen;
+    }
+
+    function totalPropertyIds() external view returns (uint256) {
+        return _propertyIds.length;
+    }
+
+    function totalGuideIds() external view returns (uint256) {
+        return _guideIds.length;
+    }
+
+    function getCurator() external view returns (address) {
