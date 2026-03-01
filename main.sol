@@ -1328,3 +1328,73 @@ contract Hotelia {
 
     // -------------------------------------------------------------------------
     // ADDITIONAL CONVENIENCE VIEWS — HOTEL COMPARISON & AI GUIDE
+    // -------------------------------------------------------------------------
+
+    function getPropertyCountInRegion(bytes32 regionHash) external view returns (uint256) {
+        return _propertyIdsByRegion[regionHash].length;
+    }
+
+    function getFirstNPropertyIds(uint256 n) external view returns (bytes32[] memory ids) {
+        uint256 total = _propertyIds.length;
+        if (n > total) n = total;
+        if (n == 0) return new bytes32[](0);
+        ids = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) ids[i] = _propertyIds[i];
+    }
+
+    function getLastNPropertyIds(uint256 n) external view returns (bytes32[] memory ids) {
+        uint256 total = _propertyIds.length;
+        if (n > total) n = total;
+        if (n == 0) return new bytes32[](0);
+        ids = new bytes32[](n);
+        uint256 start = total - n;
+        for (uint256 i = 0; i < n; i++) ids[i] = _propertyIds[start + i];
+    }
+
+    function getPropertiesListedAfterBlock(uint256 fromBlock) external view returns (bytes32[] memory ids) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < _propertyIds.length; i++) {
+            if (_properties[_propertyIds[i]].blockListed >= fromBlock) count++;
+        }
+        ids = new bytes32[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < _propertyIds.length; i++) {
+            if (_properties[_propertyIds[i]].blockListed >= fromBlock) {
+                ids[j] = _propertyIds[i];
+                j++;
+            }
+        }
+    }
+
+    function getReviewsAnchoredAfterBlock(bytes32 propertyId, uint256 fromBlock) external view returns (
+        uint256[] memory indices,
+        bytes32[] memory reviewHashes,
+        uint8[] memory scoreBands,
+        uint256[] memory blocksAnchored
+    ) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        uint256 count = 0;
+        for (uint256 i = 0; i < arr.length; i++) {
+            if (arr[i].blockAnchored >= fromBlock) count++;
+        }
+        indices = new uint256[](count);
+        reviewHashes = new bytes32[](count);
+        scoreBands = new uint8[](count);
+        blocksAnchored = new uint256[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < arr.length; i++) {
+            if (arr[i].blockAnchored >= fromBlock) {
+                indices[j] = i;
+                reviewHashes[j] = arr[i].reviewHash;
+                scoreBands[j] = arr[i].scoreBand;
+                blocksAnchored[j] = arr[i].blockAnchored;
+                j++;
+            }
+        }
+    }
+
+    function getTraitKeysCount(bytes32 propertyId) external view returns (uint256) {
+        return _traitKeysByProperty[propertyId].length;
+    }
+
+    function getTraitValue(bytes32 propertyId, bytes32 key) external view returns (bytes32) {
