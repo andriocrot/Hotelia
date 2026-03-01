@@ -1608,3 +1608,52 @@ contract Hotelia {
         return g.segmentHashes[index];
     }
 
+    function getRegionPropertyIds(bytes32 regionHash) external view returns (bytes32[] memory) {
+        return _propertyIdsByRegion[regionHash];
+    }
+
+    function getComparisonDiffHash(bytes32 leftId, bytes32 rightId) external view returns (bytes32) {
+        bytes32 pairKey = keccak256(abi.encodePacked(leftId, rightId));
+        return _comparisonSnapshots[pairKey];
+    }
+
+    function propertyListedAtBlock(bytes32 propertyId) external view returns (uint256) {
+        return _properties[propertyId].blockListed;
+    }
+
+    function guideCreatedAtBlock(bytes32 guideId) external view returns (uint256) {
+        return _guides[guideId].createdAt;
+    }
+
+    function guideCreatedBy(bytes32 guideId) external view returns (address) {
+        return _guides[guideId].createdBy;
+    }
+
+    function numberOfSegmentsInGuide(bytes32 guideId) external view returns (uint256) {
+        return _guides[guideId].segmentHashes.length;
+    }
+
+    function HTL_MAX_BATCH_LIST_SIZE() external pure returns (uint256) {
+        return HTL_MAX_BATCH_LIST;
+    }
+
+    function HTL_MAX_BATCH_REVIEW_SIZE() external pure returns (uint256) {
+        return HTL_MAX_BATCH_REVIEW;
+    }
+
+    function HTL_TRAIT_KEYS_LIMIT() external pure returns (uint256) {
+        return HTL_TRAIT_KEYS_MAX;
+    }
+
+    function HTL_COMPARISON_CACHE_BLOCKS() external pure returns (uint256) {
+        return HTL_COMPARISON_CACHE_TTL_BLOCKS;
+    }
+
+    function version() external pure returns (uint256) {
+        return 2;
+    }
+
+    function contractName() external pure returns (string memory) {
+        return "Hotelia";
+    }
+}
