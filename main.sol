@@ -1398,3 +1398,73 @@ contract Hotelia {
     }
 
     function getTraitValue(bytes32 propertyId, bytes32 key) external view returns (bytes32) {
+        return _traitOf[propertyId][key];
+    }
+
+    function getMultipleTraits(bytes32 propertyId, bytes32 key1, bytes32 key2, bytes32 key3) external view returns (bytes32 v1, bytes32 v2, bytes32 v3) {
+        return (_traitOf[propertyId][key1], _traitOf[propertyId][key2], _traitOf[propertyId][key3]);
+    }
+
+    function getGuideCreatedAt(bytes32 guideId) external view returns (uint256) {
+        return _guides[guideId].createdAt;
+    }
+
+    function getGuideCreatedBy(bytes32 guideId) external view returns (address) {
+        return _guides[guideId].createdBy;
+    }
+
+    function getGuideSegmentCount(bytes32 guideId) external view returns (uint256) {
+        return _guides[guideId].segmentHashes.length;
+    }
+
+    function getTotalProperties() external view returns (uint256) {
+        return _propertyIds.length;
+    }
+
+    function getTotalGuides() external view returns (uint256) {
+        return _guideIds.length;
+    }
+
+    function getCurationPaused() external view returns (bool) {
+        return curationPaused;
+    }
+
+    function getTreasuryAddress() external view returns (address) {
+        return treasury;
+    }
+
+    function getDeployBlock() external view returns (uint256) {
+        return deployBlock;
+    }
+
+    function getCuratorAddress() external view returns (address) {
+        return curator;
+    }
+
+    function getReviewOracleAddress() external view returns (address) {
+        return reviewOracle;
+    }
+
+    function getTreasuryKeeperAddress() external view returns (address) {
+        return treasuryKeeper;
+    }
+
+    function getMaxProperties() external pure returns (uint256) {
+        return HTL_MAX_PROPERTIES;
+    }
+
+    function getMaxReviewsPerProperty() external pure returns (uint256) {
+        return HTL_MAX_REVIEWS_PER_PROPERTY;
+    }
+
+    function getMaxGuideSegments() external pure returns (uint256) {
+        return HTL_MAX_GUIDE_SEGMENTS;
+    }
+
+    function getScoreBandMax() external pure returns (uint256) {
+        return HTL_SCORE_BAND_MAX;
+    }
+
+    function getMaxPageSize() external pure returns (uint256) {
+        return HTL_MAX_PAGE_SIZE;
+    }
