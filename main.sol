@@ -1188,3 +1188,73 @@ contract Hotelia {
             else {
                 ReviewRecord storage r = arr[arr.length - 1];
                 latticeHashes[i] = _computeLatticeHash(propertyIdsBatch[i], r.reviewHash, r.scoreBand, r.blockAnchored);
+            }
+        }
+    }
+
+    function getPropertySummariesByRegion(bytes32 regionHash) external view returns (
+        bytes32[] memory ids,
+        address[] memory listers,
+        uint256[] memory blocksListed,
+        bool[] memory frozenFlags,
+        uint8[] memory scoreBands,
+        uint256[] memory reviewCounts
+    ) {
+        bytes32[] storage regionIds = _propertyIdsByRegion[regionHash];
+        uint256 n = regionIds.length;
+        ids = new bytes32[](n);
+        listers = new address[](n);
+        blocksListed = new uint256[](n);
+        frozenFlags = new bool[](n);
+        scoreBands = new uint8[](n);
+        reviewCounts = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            PropertyData storage p = _properties[regionIds[i]];
+            ids[i] = regionIds[i];
+            listers[i] = p.listedBy;
+            blocksListed[i] = p.blockListed;
+            frozenFlags[i] = p.frozen;
+            scoreBands[i] = p.currentScoreBand;
+            reviewCounts[i] = p.reviewCount;
+        }
+    }
+
+    function getGuideIdsByCreator(address creator) external view returns (bytes32[] memory ids) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < _guideIds.length; i++) {
+            if (_guides[_guideIds[i]].createdBy == creator) count++;
+        }
+        ids = new bytes32[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < _guideIds.length; i++) {
+            if (_guides[_guideIds[i]].createdBy == creator) {
+                ids[j] = _guideIds[i];
+                j++;
+            }
+        }
+    }
+
+    function getGuidesSliceFull(uint256 offset, uint256 limit) external view returns (
+        bytes32[] memory guideIds,
+        uint256[] memory segmentCounts,
+        uint256[] memory createdAts,
+        address[] memory createdBys
+    ) {
+        uint256 total = _guideIds.length;
+        if (offset >= total) {
+            guideIds = new bytes32[](0);
+            segmentCounts = new uint256[](0);
+            createdAts = new uint256[](0);
+            createdBys = new address[](0);
+            return (guideIds, segmentCounts, createdAts, createdBys);
+        }
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        guideIds = new bytes32[](n);
+        segmentCounts = new uint256[](n);
+        createdAts = new uint256[](n);
+        createdBys = new address[](n);
+        for (uint256 i = 0; i < n; i++) {
+            bytes32 gid = _guideIds[offset + i];
+            GuideData storage g = _guides[gid];
