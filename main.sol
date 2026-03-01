@@ -1258,3 +1258,73 @@ contract Hotelia {
         for (uint256 i = 0; i < n; i++) {
             bytes32 gid = _guideIds[offset + i];
             GuideData storage g = _guides[gid];
+            guideIds[i] = gid;
+            segmentCounts[i] = g.segmentHashes.length;
+            createdAts[i] = g.createdAt;
+            createdBys[i] = g.createdBy;
+        }
+    }
+
+    function getPropertyIdsPaginated(uint256 page, uint256 pageSize) external view returns (bytes32[] memory ids, uint256 total) {
+        total = _propertyIds.length;
+        uint256 offset = page * pageSize;
+        if (offset >= total) return (new bytes32[](0), total);
+        uint256 end = offset + pageSize;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        ids = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) ids[i] = _propertyIds[offset + i];
+    }
+
+    function getReviewCountsBatch(bytes32[] calldata propertyIdsBatch) external view returns (uint256[] memory counts) {
+        counts = new uint256[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            counts[i] = _reviewsByProperty[propertyIdsBatch[i]].length;
+        }
+    }
+
+    function getTraitBundleHashesBatch(bytes32[] calldata propertyIdsBatch) external view returns (bytes32[] memory hashes) {
+        hashes = new bytes32[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            hashes[i] = _properties[propertyIdsBatch[i]].traitBundleHash;
+        }
+    }
+
+    function getRegionHashesBatch(bytes32[] calldata propertyIdsBatch) external view returns (bytes32[] memory regionHashes) {
+        regionHashes = new bytes32[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            regionHashes[i] = _properties[propertyIdsBatch[i]].regionHash;
+        }
+    }
+
+    function getListedByBatch(bytes32[] calldata propertyIdsBatch) external view returns (address[] memory listers) {
+        listers = new address[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            listers[i] = _properties[propertyIdsBatch[i]].listedBy;
+        }
+    }
+
+    function getBlockListedBatch(bytes32[] calldata propertyIdsBatch) external view returns (uint256[] memory blocks) {
+        blocks = new uint256[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            blocks[i] = _properties[propertyIdsBatch[i]].blockListed;
+        }
+    }
+
+    function supportsComparisonMatrix(bytes32[] calldata propertyIdsBatch) external view returns (bool[] memory hasAnyComparison) {
+        hasAnyComparison = new bool[](propertyIdsBatch.length);
+        for (uint256 i = 0; i < propertyIdsBatch.length; i++) {
+            bytes32 pid = propertyIdsBatch[i];
+            bool found = false;
+            for (uint256 j = 0; j < _propertyIds.length && !found; j++) {
+                bytes32 other = _propertyIds[j];
+                if (other == pid) continue;
+                bytes32 pairKey = keccak256(abi.encodePacked(pid, other));
+                if (_comparisonSnapshots[pairKey] != bytes32(0)) found = true;
+            }
+            hasAnyComparison[i] = found;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // ADDITIONAL CONVENIENCE VIEWS — HOTEL COMPARISON & AI GUIDE
