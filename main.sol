@@ -1538,3 +1538,73 @@ contract Hotelia {
     }
 
     function getCurator() external view returns (address) {
+        return curator;
+    }
+
+    function getReviewOracle() external view returns (address) {
+        return reviewOracle;
+    }
+
+    function getTreasuryKeeper() external view returns (address) {
+        return treasuryKeeper;
+    }
+
+    function getTreasury() external view returns (address) {
+        return treasury;
+    }
+
+    function getDeployBlockNumber() external view returns (uint256) {
+        return deployBlock;
+    }
+
+    function isCurationPaused() external view returns (bool) {
+        return curationPaused;
+    }
+
+    function getMaxPropertiesLimit() external pure returns (uint256) {
+        return HTL_MAX_PROPERTIES;
+    }
+
+    function getMaxReviewsPerPropertyLimit() external pure returns (uint256) {
+        return HTL_MAX_REVIEWS_PER_PROPERTY;
+    }
+
+    function getMaxGuideSegmentsLimit() external pure returns (uint256) {
+        return HTL_MAX_GUIDE_SEGMENTS;
+    }
+
+    function getScoreBandMaximum() external pure returns (uint256) {
+        return HTL_SCORE_BAND_MAX;
+    }
+
+    function getMaxPageSizeLimit() external pure returns (uint256) {
+        return HTL_MAX_PAGE_SIZE;
+    }
+
+    function getLatticeSaltConstant() external pure returns (bytes32) {
+        return HTL_LATTICE_SALT;
+    }
+
+    function getGuideAnchorConstant() external pure returns (bytes32) {
+        return HTL_GUIDE_ANCHOR;
+    }
+
+    function getReviewAt(bytes32 propertyId, uint256 index) external view returns (
+        bytes32 reviewHash_,
+        uint8 scoreBand_,
+        uint256 blockAnchored_,
+        address anchoredBy_
+    ) {
+        ReviewRecord[] storage arr = _reviewsByProperty[propertyId];
+        if (index >= arr.length) revert HTL_InvalidIndex();
+        ReviewRecord storage r = arr[index];
+        return (r.reviewHash, r.scoreBand, r.blockAnchored, r.anchoredBy);
+    }
+
+    function getGuideSegmentAt(bytes32 guideId, uint256 index) external view returns (bytes32) {
+        GuideData storage g = _guides[guideId];
+        if (g.createdAt == 0) revert HTL_NotListed();
+        if (index >= g.segmentHashes.length) revert HTL_InvalidIndex();
+        return g.segmentHashes[index];
+    }
+
